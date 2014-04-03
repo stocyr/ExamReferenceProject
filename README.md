@@ -39,6 +39,6 @@ Es wurden zwei `Timer` mit dazugehörigen `TimerTasks` (als innere Klassen) erst
 
 *still to do*
 
-### TextToSpeach
+### TextToSpeech
 
 *still to do*

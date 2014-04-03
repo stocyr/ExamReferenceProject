@@ -13,18 +13,24 @@
  */
 package bfh.ti.examreferenceproject;
 
+import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
 import android.os.Bundle;
 import android.app.Activity;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.TextToSpeech.OnInitListener;
 import android.view.Menu;
 import android.widget.TextView;
+import android.widget.Toast;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements OnInitListener {
 
 	private ADC adc;
 	private TextView viewADCValue;
+
+	private TextToSpeech tts;
 
 	private SysfsFileGPIO led1;
 	// private SysfsFileGPIO led2;
@@ -37,6 +43,7 @@ public class MainActivity extends Activity {
 	// private SysfsFileGPIO button4;
 
 	private int adcValue;
+	private boolean speakEnabled = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -80,6 +87,9 @@ public class MainActivity extends Activity {
 
 		// set up textView
 		viewADCValue = (TextView) findViewById(R.id.myTextView);
+
+		// set up texttospeech
+		tts = new TextToSpeech(this, this);
 	}
 
 	@Override
@@ -87,6 +97,23 @@ public class MainActivity extends Activity {
 		// Inflate the menu; this adds items to the action bar if it is present.
 		getMenuInflater().inflate(R.menu.main, menu);
 		return true;
+	}
+
+	@Override
+	public void onInit(int status) {
+		if (status == TextToSpeech.SUCCESS) {
+			int result = tts.setLanguage(Locale.US);
+			if (result == TextToSpeech.LANG_MISSING_DATA
+					|| result == TextToSpeech.LANG_NOT_SUPPORTED) {
+				Toast.makeText(this, "Language not supported",
+						Toast.LENGTH_LONG).show();
+			} else {
+				speakEnabled = true;
+			}
+		} else {
+			Toast.makeText(this, "TTS Initilization Failed", Toast.LENGTH_LONG)
+					.show();
+		}
 	}
 
 	class ADCTimerTask extends TimerTask {
@@ -106,11 +133,35 @@ public class MainActivity extends Activity {
 	}
 
 	class ButtonTimerTask extends TimerTask {
+		private int oldButtonValue = 1;
+
 		@Override
 		public void run() {
 			// Read button values and react accordingly
 			// Warning: BUTTONS AND LEDS ARE ACTIVE-LOW
 			led1.write_value(button1.read_value());
+
+			if (button1.read_value() == 0 && oldButtonValue == 1) {
+				tts.speak("Hello, this is Microsoft Sam",
+						TextToSpeech.QUEUE_FLUSH, null);
+				setToast();
+			}
+			oldButtonValue = button1.read_value();
 		}
+	}
+
+	public void setToast() {
+		Toast.makeText(this, "click...", Toast.LENGTH_LONG).show();
+	}
+
+	public void onDestroy() {
+		/*
+		 * Don't forget to shutdown!
+		 */
+		if (tts != null) {
+			tts.stop();
+			tts.shutdown();
+		}
+		super.onDestroy();
 	}
 }
