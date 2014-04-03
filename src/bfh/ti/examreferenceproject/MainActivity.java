@@ -19,9 +19,12 @@ import java.util.TimerTask;
 
 import android.os.Bundle;
 import android.app.Activity;
+import android.content.Context;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.TextToSpeech.OnInitListener;
 import android.view.Menu;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -29,8 +32,12 @@ public class MainActivity extends Activity implements OnInitListener {
 
 	private ADC adc;
 	private TextView viewADCValue;
+	private Button myButton;
+
+	private Context context;
 
 	private TextToSpeech tts;
+	private String text = "You have selected Microsoft Sam as the computer's default voice.";
 
 	private SysfsFileGPIO led1;
 	// private SysfsFileGPIO led2;
@@ -49,6 +56,24 @@ public class MainActivity extends Activity implements OnInitListener {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+
+		// context is used for the Toast message outside the Activity
+		// environment
+		context = getApplicationContext();
+
+		// set up UI elements
+		viewADCValue = (TextView) findViewById(R.id.myTextView);
+		myButton = (Button) findViewById(R.id.myButton);
+		myButton.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				Toast.makeText(context, (CharSequence) "button clicked",
+						Toast.LENGTH_SHORT).show();
+			}
+		});
+
+		// set up text2speech
+		tts = new TextToSpeech(this, this);
 
 		// set up ADC
 		adc = new ADC();
@@ -75,21 +100,25 @@ public class MainActivity extends Activity implements OnInitListener {
 		// button3.set_direction_in();
 		// button4.set_direction_in();
 
-		// set up adc timer, delay 0ms and repeat in 50ms
+		// set up ADC handling timer, delay 0ms and repeat in 50ms (20Hz)
 		Timer adcTimer = new Timer();
 		ADCTimerTask adcTimerTask = new ADCTimerTask();
 		adcTimer.schedule(adcTimerTask, 0, 50);
 
-		// set up button timer, delay 0ms and repeat in 50ms
+		// set up button handling timer, delay 0ms and repeat in 50ms (20Hz)
 		Timer buttonTimer = new Timer();
 		ButtonTimerTask buttonTimerTask = new ButtonTimerTask();
 		buttonTimer.schedule(buttonTimerTask, 0, 50);
 
-		// set up textView
-		viewADCValue = (TextView) findViewById(R.id.myTextView);
+		// set up a one-time timer; delay 3s
+		Timer oneTimeTimer = new Timer();
+		OneTimeTimerTask oneTimeTimerTask = new OneTimeTimerTask();
+		oneTimeTimer.schedule(oneTimeTimerTask, 3000);
 
-		// set up texttospeech
-		tts = new TextToSpeech(this, this);
+		// Recurring Timers are stopped with:
+		// if (buttonTimer != null) buttonTimer.cancel();
+		// but after this statement, the timer won't ever start again!
+		// So it has to be re-scheduled with buttonTimer = new Timer() .. etc.
 	}
 
 	@Override
@@ -99,23 +128,19 @@ public class MainActivity extends Activity implements OnInitListener {
 		return true;
 	}
 
+	// startup code for the text2speech engine
 	@Override
 	public void onInit(int status) {
 		if (status == TextToSpeech.SUCCESS) {
 			int result = tts.setLanguage(Locale.US);
-			if (result == TextToSpeech.LANG_MISSING_DATA
-					|| result == TextToSpeech.LANG_NOT_SUPPORTED) {
-				Toast.makeText(this, "Language not supported",
-						Toast.LENGTH_LONG).show();
-			} else {
+			if (result != TextToSpeech.LANG_MISSING_DATA
+					&& result != TextToSpeech.LANG_NOT_SUPPORTED) {
 				speakEnabled = true;
 			}
-		} else {
-			Toast.makeText(this, "TTS Initilization Failed", Toast.LENGTH_LONG)
-					.show();
 		}
 	}
 
+	// ADC handle timer
 	class ADCTimerTask extends TimerTask {
 		@Override
 		public void run() {
@@ -123,41 +148,56 @@ public class MainActivity extends Activity implements OnInitListener {
 			adcValue = adc.read_adc(ADC.ADC_IN4);
 
 			runOnUiThread(new Runnable() {
-				@Override
 				public void run() {
-					// update textView
+					// update textView in a UI-Thread
 					viewADCValue.setText("ADC-Value: " + adcValue);
 				}
 			});
 		}
 	}
 
+	// button handle timer
 	class ButtonTimerTask extends TimerTask {
-		private int oldButtonValue = 1;
+		private int oldButton1Value = 1; // for edge detection
 
-		@Override
 		public void run() {
 			// Read button values and react accordingly
 			// Warning: BUTTONS AND LEDS ARE ACTIVE-LOW
 			led1.write_value(button1.read_value());
 
-			if (button1.read_value() == 0 && oldButtonValue == 1) {
-				tts.speak("Hello, this is Microsoft Sam",
-						TextToSpeech.QUEUE_FLUSH, null);
-				setToast();
+			if (button1.read_value() == 0 && oldButton1Value == 1
+					&& speakEnabled) {
+				// speak something
+				tts.speak(text, TextToSpeech.QUEUE_FLUSH, null);
+
+				// place Toast. --> WARNING: inside a timer thread,
+				// the Toast has to be launched in a UI-Thread!!
+				runOnUiThread(new Runnable() {
+					public void run() {
+						Toast.makeText(context, (CharSequence) "(speaking)",
+								Toast.LENGTH_LONG).show();
+					}
+				});
 			}
-			oldButtonValue = button1.read_value();
+			oldButton1Value = button1.read_value();
 		}
 	}
 
-	public void setToast() {
-		Toast.makeText(this, "click...", Toast.LENGTH_LONG).show();
+	// one-time recurring timer
+	class OneTimeTimerTask extends TimerTask {
+		public void run() {
+			runOnUiThread(new Runnable() {
+				public void run() {
+					Toast.makeText(context, (CharSequence) "one-time timer",
+							Toast.LENGTH_SHORT).show();
+				}
+			});
+		}
 	}
 
+	// clean up
 	public void onDestroy() {
-		/*
-		 * Don't forget to shutdown!
-		 */
+		// Don't forget to shutdown!
 		if (tts != null) {
 			tts.stop();
 			tts.shutdown();
