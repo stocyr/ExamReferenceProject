@@ -4,8 +4,8 @@
  *	    	Exam 08.04.2014
  * \file    MainActivity.java
  * \version 1.0
- * \date    01.04.2014
- * \author  Cyril Stoller
+ * \date    08.04.2014
+ * \author  Simon Grossenbacher
  *
  * \remark  Last Modifications:
  * \remark  V1.0, stolc2, 01.04.2014
@@ -37,7 +37,7 @@ public class MainActivity extends Activity implements OnInitListener {
 	private Context context;
 
 	private TextToSpeech tts;
-	private String text = "You have selected Microsoft Sam as the computer's default voice.";
+	private String text = "You are my Boss! Please command me..... I love you :-)";
 
 	private SysfsFileGPIO led1;
 	// private SysfsFileGPIO led2;
@@ -132,6 +132,7 @@ public class MainActivity extends Activity implements OnInitListener {
 	@Override
 	public void onInit(int status) {
 		if (status == TextToSpeech.SUCCESS) {
+			tts.setSpeechRate(1F);
 			int result = tts.setLanguage(Locale.US);
 			if (result != TextToSpeech.LANG_MISSING_DATA
 					&& result != TextToSpeech.LANG_NOT_SUPPORTED) {
@@ -140,7 +141,12 @@ public class MainActivity extends Activity implements OnInitListener {
 		}
 	}
 
-	// ADC handle timer
+	
+	/**
+	 * ADC Task
+	 * @author grosi
+	 *
+	 */
 	class ADCTimerTask extends TimerTask {
 		@Override
 		public void run() {
@@ -156,7 +162,12 @@ public class MainActivity extends Activity implements OnInitListener {
 		}
 	}
 
-	// button handle timer
+	
+	/**
+	 * Button task
+	 * @author grosi
+	 *
+	 */
 	class ButtonTimerTask extends TimerTask {
 		private int oldButton1Value = 1; // for edge detection
 
@@ -182,8 +193,13 @@ public class MainActivity extends Activity implements OnInitListener {
 			oldButton1Value = button1.read_value();
 		}
 	}
+	
 
-	// one-time recurring timer
+	/**
+	 * One Time task
+	 * @author grosi
+	 *
+	 */
 	class OneTimeTimerTask extends TimerTask {
 		public void run() {
 			runOnUiThread(new Runnable() {

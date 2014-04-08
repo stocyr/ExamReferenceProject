@@ -5,8 +5,8 @@
  *			Accessing the ADC (connected potentiometer)
  * \file    ADC.java
  * \version 1.0
- * \date    01.04.2014
- * \author  Cyril Stoller
+ * \date    08.04.2014
+ * \author  Simon Grossenbacher
  *
  * \remark  Last Modifications:
  * \remark  V1.0, stolc2, 01.04.2014
